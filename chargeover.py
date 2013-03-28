@@ -77,12 +77,12 @@ class ChargeOver:
         if(self._http_res.status != 200 and 
            self._http_res.status != 302):
             raise ChargeOverConnectionError(self._http_res.status, 
-                                       self._http_res.reason)
+                                            self._http_res.reason)
 
         # json response from ChargeOver server
         if(self._data['status'] != "OK"):
             raise ChargeOverSyntaxError(self._data['code'], 
-                                   self._data['message'])
+                                        self._data['message'])
         return
       
     def _validate_target(self, target):
@@ -145,8 +145,6 @@ class ChargeOver:
         # the actual data. Calling method retrieves this.
         self._response = self._data['response']
 
-        self._error_check()
-
 
     def _submit(self, location, data, obj_id=None):
         self._validate_target(location)
@@ -171,7 +169,6 @@ class ChargeOver:
 
         self._response = self._data['response']
 
-        self._error_check()
 
     def find_by_id(self, target, obj_id, pretty=False):
         """ retrieve an object from ChargeOver
@@ -188,14 +185,19 @@ class ChargeOver:
         mode. Otherwise, a dictionary or list of dictionaries
         containing the requested data."""
 
-
         self._request(target, obj_id)
 
         if(self._interactive and pretty):
             pprint.pprint(self._response)
             return
-        else:
+
+        if(self._http_res['status'] == '200'):
             return self._response
+        elif(self._http_res['status'] == '404'):
+            return None
+        else:
+            raise ChargeOverConnectionError(self._http_res.status, 
+                                            self._http_res.reason)
 
     def find_all(self, target, limit=10, offset=None, pretty=False):
         """ retrieve an object from ChargeOver
@@ -226,8 +228,12 @@ class ChargeOver:
         if(self._interactive and pretty):
             pprint.pprint(self._response)
             return
-        else:
+
+        if(self._http_res['status'] == '200'):
             return self._response
+        else:
+            raise ChargeOverConnectionError(self._http_res.status, 
+                                            self._http_res.reason)
 
     def find(self, target, where, limit=10, offset=None, pretty=False):
         """ retrieve an object from ChargeOver
@@ -259,8 +265,14 @@ class ChargeOver:
         if(self._interactive and pretty):
             pprint.pprint(self._response)
             return
-        else:
+
+        if(self._http_res['status'] == '200'):
             return self._response
+        elif(self._http_res['status'] == '404'):
+            return None
+        else:
+            raise ChargeOverConnectionError(self._http_res.status, 
+                                            self._http_res.reason)
 
     def create(self, target, data, pretty=False):
         """ Add a new record to ChargeOver
@@ -284,8 +296,14 @@ class ChargeOver:
         if(self._interactive and pretty):
             pprint.pprint(self._response)
             return
-        else:
+
+        if(self._http_res['status'] == '201'):
             return self._response
+        elif(self._http_res['status'] == '404'):
+            return None
+        else:
+            raise ChargeOverConnectionError(self._http_res.status, 
+                                            self._http_res.reason)
 
     def update(self, target, obj_id, data, pretty=False):
         """ Update a ChargeOver record
@@ -309,8 +327,15 @@ class ChargeOver:
         if(self._interactive and pretty):
             pprint.pprint(self._response)
             return
-        else:
+ 
+        if(self._http_res['status'] == '202'):
             return self._response
+        elif(self._http_res['status'] == '404'):
+            return None
+        else:
+            raise ChargeOverConnectionError(self._http_res.status, 
+                                            self._http_res.reason)
+
 
     def get_last_response(self):
         """ returns the response from ChargeOver as python objects """
