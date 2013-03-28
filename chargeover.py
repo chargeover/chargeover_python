@@ -61,6 +61,9 @@ class ChargeOver:
         self._interactive = interactive
         self._options = [USER, CUSTOMER, INVOICE, TRANSACTION, 
                          BILLING_PACKAGE]
+        self._data = None
+        self._http_res = None
+        self._url = None
 
     def _prepare_connection(self):
         h = httplib2.Http()
@@ -309,4 +312,14 @@ class ChargeOver:
         else:
             return self._response
 
-
+    def get_last_response(self):
+        """ returns the response from ChargeOver as python objects """
+        return self._data
+        
+    def get_last_http_response(self):
+        """ returns the last http server response """
+        return self._http_res
+        
+    def get_last_request_url(self):
+        """ returns the last request url """
+        return self._url
