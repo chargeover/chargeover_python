@@ -43,10 +43,10 @@ class ChargeOver:
 
     """ For interacting with a ChargeOver server in python."""
 
-    def __init__(self, host, user, password, interactive=False):
+    def __init__(self, endpoint, user, password, interactive=False):
         
         """ 
-        host, user and password should come from the
+        endpoint, user and password should come from the
         "Configuration/API and webhooks" in your ChargeOver
         application when using Basic Authentication.
 
@@ -55,7 +55,7 @@ class ChargeOver:
         you're calling this in interactive mode.
         """
         
-        self._host = host.rstrip("/")
+        self._endpoint = endpoint.rstrip("/")
         self._user = user
         self._pw = password
         self._interactive = interactive
@@ -82,16 +82,24 @@ class ChargeOver:
                                    self._data['message'])
         return
       
+    def _validate_target(self, target):
+        if(self._interactive and target not in self._options):
+            error = "Invalid target " + target + ". Use one of: "
+            opts = ", ".join(self._options)
+            raise Exception(error + opts)
 
-    def _request(self, location, obj_id=None, where=None, limit=None):
+    def _request(self, location, obj_id=None, where=None, limit=None, 
+                 offset=None):
+        self._validate_target(location)
+
         h = self._prepare_connection()
 
         opt_dict = {}
 
         if location:
-            self._url = self._host + "/" + location
+            self._url = self._endpoint + "/" + location
         else:
-            self._url = self._host + "/"
+            self._url = self._endpoint + "/"
 
         if obj_id is not None:
             self._url = self._url + "/" + str(obj_id)
@@ -111,18 +119,20 @@ class ChargeOver:
         
         if(limit):
             opt_dict['limit'] = str(limit)
+        if(offset):
+            opt_dict['offset'] = str(offset)
 
         if(opt_dict):
             suffix = None
             for key in opt_dict:
                 if suffix:
-                    suffix += "," + key + "=" + opt_dict[key]
+                    suffix += "&" + key + "=" + opt_dict[key]
                 else:
                     suffix = key + "=" + opt_dict[key]
             self._url += "?" + suffix
 
         http_res, content = h.request(self._url)
-        
+
         # data is returned as a json object. This will convert it to
         # python structures in ascii. These are only saved for
         # debugging purposes.
@@ -136,12 +146,14 @@ class ChargeOver:
 
 
     def _submit(self, location, data, obj_id=None):
+        self._validate_target(location)
+
         http = self._prepare_connection()
 
         if location:
-            self._url = self._host + "/" + location
+            self._url = self._endpoint + "/" + location
         else:
-            self._url = self._host + "/"
+            self._url = self._endpoint + "/"
 
         method = "POST"
         if obj_id is not None:
@@ -158,27 +170,14 @@ class ChargeOver:
 
         self._error_check()
 
-
-    def get(self, target, obj_id=None, where=None, limit=None, 
-            pretty=False):
-
-        """ Get data from ChargeOver
+    def find_by_id(self, target, obj_id, pretty=False):
+        """ retrieve an object from ChargeOver
 
         target -- string from the module data specifying what to
         retrieve, e.g. "customer", "invoice". These are constants in
         the module.
 
         Keyword Arguments:
-        obj_id -- numeric specifying an optional id for the target
-        e.g. customer 354 for retrieving a single customer
-
-        where -- dict for making more intelligent selections. Non null
-        values will be turned into http GET options like
-        key:EQUALS:value. 'value's set to "NULL" will be assigned as
-        key:IS:NULL. see chargeover.com REST API documentation
-
-        limit -- limits the number of results returned
-
         pretty -- set to True to get pretty printed output, surpresses
         return value. Only usable in interactive mode.
 
@@ -186,14 +185,73 @@ class ChargeOver:
         mode. Otherwise, a dictionary or list of dictionaries
         containing the requested data."""
 
-        if(self._interactive and target not in self._options):
-            print "Invalid option " + target + ". Use one of:"
-            for opt in options:
-                print opt
-            return
 
-        # return value saved in a class member
-        self._request(target, obj_id, where, limit)
+        self._request(target, obj_id)
+
+        if(self._interactive and pretty):
+            pprint.pprint(self._response)
+            return
+        else:
+            return self._response
+
+    def find_all(self, target, limit=10, offset=None, pretty=False):
+        """ retrieve an object from ChargeOver
+
+        target -- string from the module data specifying what to
+        retrieve, e.g. "customer", "invoice". These are constants in
+        the module.
+
+        Keyword Arguments:
+        where -- dict for making more intelligent selections. Non null
+        values will be turned into http GET options like
+        key:EQUALS:value. 'value's set to "NULL" will be assigned as
+        key:IS:NULL. see chargeover.com REST API documentation
+
+        limit -- limits the number of results returned
+        
+        offset -- offset into results, useful for pagination
+
+        pretty -- set to True to get pretty printed output, surpresses
+        return value. Only usable in interactive mode.
+
+        return -- nothing when pretty is set to True in interactive
+        mode. Otherwise, a dictionary or list of dictionaries
+        containing the requested data."""
+        self._request(target, limit = locals()['limit'], 
+                      offset = locals()['offset'])
+
+        if(self._interactive and pretty):
+            pprint.pprint(self._response)
+            return
+        else:
+            return self._response
+
+    def find(self, target, where, limit=10, offset=None, pretty=False):
+        """ retrieve an object from ChargeOver
+
+        target -- string from the module data specifying what to
+        retrieve, e.g. "customer", "invoice". These are constants in
+        the module.
+
+        Keyword Arguments:
+        where -- dict for making more intelligent selections. Non null
+        values will be turned into http GET options like
+        key:EQUALS:value. 'value's set to "NULL" will be assigned as
+        key:IS:NULL. see chargeover.com REST API documentation
+
+        limit -- limits the number of results returned
+
+        offset -- offset into results, useful for pagination
+
+        pretty -- set to True to get pretty printed output, surpresses
+        return value. Only usable in interactive mode.
+
+        return -- nothing when pretty is set to True in interactive
+        mode. Otherwise, a dictionary or list of dictionaries
+        containing the requested data."""
+        self._request(target, where = locals()['where'],
+                      limit = locals()['limit'], 
+                      offset = locals()['offset'])
 
         if(self._interactive and pretty):
             pprint.pprint(self._response)
