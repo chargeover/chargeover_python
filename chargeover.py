@@ -26,14 +26,11 @@ def convert(input):
         return input
 
 class ChargeOverConnectionError(Exception):
-    """ Connection errors thrown by ChargeOver """
-    def __init__(self, code, text):
-        self.value = str(code) + ": " + text
-    def __str__(self):
-        return repr(self.value)
+    """ Connection errors thrown by ChargeOver 
 
-class ChargeOverSyntaxError(Exception):
-    """ Syntax (Bad URL, Bad options) errors thrown by ChargeOver """
+    Typically this will be an unexpected HTTP response code. Note that
+    very exceptional HTTP responses may cause an exception in
+    httplib2."""
     def __init__(self, code, text):
         self.value = str(code) + ": " + text
     def __str__(self):
@@ -41,14 +38,18 @@ class ChargeOverSyntaxError(Exception):
 
 class ChargeOver:
 
-    """ For interacting with a ChargeOver server in python."""
+    """ For interacting with a ChargeOver server in python.
+
+    Note that all methods can raise ChargeOverConnectionError, and any
+    network communications exceptions raised by httplib2."""
 
     def __init__(self, endpoint, user, password, interactive=False):
         
         """ 
         endpoint, user and password should come from the
         "Configuration/API and webhooks" in your ChargeOver
-        application when using Basic Authentication.
+        application (endpoint is the API url) when using Basic
+        Authentication.
 
         Keyword Arguments: 
         interactive -- boolean, set to true if
@@ -71,20 +72,6 @@ class ChargeOver:
         self._response = None
         return h
     
-    def _error_check(self):
-        # HTTP response returned from httplib, this gives us HTTP
-        # status information (also available in the json)
-        if(self._http_res.status != 200 and 
-           self._http_res.status != 302):
-            raise ChargeOverConnectionError(self._http_res.status, 
-                                            self._http_res.reason)
-
-        # json response from ChargeOver server
-        if(self._data['status'] != "OK"):
-            raise ChargeOverSyntaxError(self._data['code'], 
-                                        self._data['message'])
-        return
-      
     def _validate_target(self, target):
         if(self._interactive and target not in self._options):
             error = "Invalid target " + target + ". Use one of: "
@@ -93,6 +80,8 @@ class ChargeOver:
 
     def _request(self, location, obj_id=None, where=None, limit=None, 
                  offset=None):
+        # internal method for handling GET requests. Used by find,
+        # find_by_id, and find_all methods
         self._validate_target(location)
 
         h = self._prepare_connection()
@@ -147,6 +136,8 @@ class ChargeOver:
 
 
     def _submit(self, location, data, obj_id=None):
+        # internal method for handling POST and PUT requests (that is,
+        # create and update)
         self._validate_target(location)
 
         http = self._prepare_connection()
@@ -182,8 +173,8 @@ class ChargeOver:
         return value. Only usable in interactive mode.
 
         return -- nothing when pretty is set to True in interactive
-        mode. Otherwise, a dictionary or list of dictionaries
-        containing the requested data."""
+        mode. Otherwise, a dictionary containing the requested
+        data."""
 
         self._request(target, obj_id)
 
@@ -220,8 +211,8 @@ class ChargeOver:
         return value. Only usable in interactive mode.
 
         return -- nothing when pretty is set to True in interactive
-        mode. Otherwise, a dictionary or list of dictionaries
-        containing the requested data."""
+        mode. Otherwise, a list of dictionaries containing the
+        requested data."""
         self._request(target, limit = locals()['limit'], 
                       offset = locals()['offset'])
 
@@ -256,8 +247,8 @@ class ChargeOver:
         return value. Only usable in interactive mode.
 
         return -- nothing when pretty is set to True in interactive
-        mode. Otherwise, a dictionary or list of dictionaries
-        containing the requested data."""
+        mode. Otherwise, a list of dictionaries containing the
+        requested data."""
         self._request(target, where = locals()['where'],
                       limit = locals()['limit'], 
                       offset = locals()['offset'])
@@ -284,6 +275,7 @@ class ChargeOver:
         pretty -- set to True to get pretty printed output, surpresses
         return value. Only usable in interactive mode.
 
+        return -- success - id of new object, failure - None
         """
         if(self._interactive and target not in self._options):
             print "Invalid option " + target + ". Use one of:"
@@ -314,6 +306,9 @@ class ChargeOver:
         
         pretty -- set to True to get pretty printed output, surpresses
         return value. Only usable in interactive mode.
+
+        return -- on success, returns id of updated object. On
+        failure, returns None.
         """
 
         if(self._interactive and target not in self._options):
@@ -340,7 +335,7 @@ class ChargeOver:
     def get_last_response(self):
         """ returns the response from ChargeOver as python objects """
         return self._data
-        
+
     def get_last_http_response(self):
         """ returns the last http server response """
         return self._http_res
