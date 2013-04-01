@@ -1,7 +1,12 @@
+import random
+import time
+import pprint
+import hmac
+import hashlib
+import string
 import json
 import httplib2
 import urllib
-import pprint
 
 
 USER = "user"
@@ -43,7 +48,8 @@ class ChargeOver:
     Note that all methods can raise ChargeOverConnectionError, and any
     network communications exceptions raised by httplib2."""
 
-    def __init__(self, endpoint, user, password, interactive=False):
+    def __init__(self, endpoint, user, password, key_auth=False, 
+                 interactive=False, debug = False):
         
         """ 
         endpoint, user and password should come from the
@@ -57,8 +63,11 @@ class ChargeOver:
         """
         
         self._endpoint = endpoint.rstrip("/")
+
+        self._key_auth = key_auth
         self._user = user
         self._pw = password
+
         self._interactive = interactive
         self._options = [USER, CUSTOMER, INVOICE, TRANSACTION, 
                          BILLING_PACKAGE]
@@ -66,10 +75,35 @@ class ChargeOver:
         self._http_res = None
         self._url = None
 
+        if debug:
+            self._debug = True
+            httplib2.debuglevel = 1
+
+    def _signature(self, url, data=""):
+        tmp = [c for c in string.ascii_lowercase]
+        tmp.extend([str(n) for n in range(10)])
+        random.shuffle(tmp)
+
+        nonce = "".join(tmp[0:8])
+
+        # php time() seems to give whole numbers back
+        client_time = str(int(time.time()))
+
+        msg = "||".join([str(self._user), str(url).lower(), nonce, 
+                         client_time, str(data)])
+
+        sig = hmac.new(self._pw, msg, hashlib.sha256).hexdigest()
+
+        header = 'ChargeOver co_public_key="%s" co_nonce="%s" co_timestamp="%s" co_signature_method="HMAC-SHA256" co_version="1.0" co_signature="%s"' %(self._user, nonce, client_time, sig)
+        return header
+        
+
     def _prepare_connection(self):
         h = httplib2.Http()
-        h.add_credentials(self._user, self._pw)
+        if not self._key_auth:
+            h.add_credentials(self._user, self._pw)
         self._response = None
+        
         return h
     
     def _validate_target(self, target):
@@ -84,7 +118,7 @@ class ChargeOver:
         # find_by_id, and find_all methods
         self._validate_target(location)
 
-        h = self._prepare_connection()
+        http = self._prepare_connection()
 
         opt_dict = {}
 
@@ -123,17 +157,21 @@ class ChargeOver:
                     suffix = key + "=" + opt_dict[key]
             self._url += "?" + suffix
 
-        http_res, content = h.request(self._url)
+        if self._key_auth:
+            headers = {'Authorization': self._signature(self._url)}
+            http_res, content = http.request(self._url, headers=headers)
+        else:
+            http_res, content = http.request(self._url)
+
+        self._http_res = http_res
+        self._content = content
 
         # data is returned as a json object. This will convert it to
         # python structures in ascii. These are only saved for
         # debugging purposes.
         self._data = json.loads(content, object_hook=convert)
-        self._http_res = http_res
-        
         # the actual data. Calling method retrieves this.
         self._response = self._data['response']
-
 
     def _submit(self, location, data, obj_id=None):
         # internal method for handling POST and PUT requests (that is,
@@ -152,14 +190,23 @@ class ChargeOver:
             self._url = self._url + "/" + str(obj_id)
             method = "PUT"
 
-        http_res, content = http.request(self._url, method, 
-                                         json.dumps(data))
+        json_data = json.dumps(data)
+        
+        if self._key_auth:
+            headers = {'Authorization': 
+                       self._signature(self._url, json_data),
+                       'content-type': "application/json"}
+            http_res, content = http.request(self._url, method, 
+                                             body=json_data, 
+                                             headers=headers)
+        else:
+            http_res, content = http.request(self._url, method, 
+                                             body=json_data)
 
-        self._data = json.loads(content, object_hook=convert)
         self._http_res = http_res
-
+        self._content = content
+        self._data = json.loads(content, object_hook=convert)
         self._response = self._data['response']
-
 
     def find_by_id(self, target, obj_id, pretty=False):
         """ retrieve an object from ChargeOver
@@ -290,8 +337,8 @@ class ChargeOver:
             return
 
         if(self._http_res['status'] == '201'):
-            return self._response
-        elif(self._http_res['status'] == '404'):
+            return self._response['id']
+        elif(self._http_res['status'] == '400'):
             return None
         else:
             raise ChargeOverConnectionError(self._http_res.status, 
@@ -324,7 +371,7 @@ class ChargeOver:
             return
  
         if(self._http_res['status'] == '202'):
-            return self._response
+            return self._response['id']
         elif(self._http_res['status'] == '404'):
             return None
         else:

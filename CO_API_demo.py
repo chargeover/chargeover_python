@@ -2,13 +2,17 @@ import sys
 import chargeover
 import pprint # pretty printer
 
-# For basic authentication, fill in these values from your ChargeOver
+# For authentication, fill in these values from your ChargeOver
 # server information under "Configuraion->API and Webhooks"
-endpoint = ""
-username = ""
-password = ""
+endpoint = "http://erida.local/saas/signup/api/v3.php/"
+username = "gYow6p85Vb0vcfzEH9shRQTrjy2niuLl"
+password = "FBste2Hw9PovbnY6hNuGVmjgA5RDdqXS"
 
-co = chargeover.ChargeOver(endpoint, username, password)
+# set this to True to use "COv1 Signature" authorization
+key_auth = True
+
+co = chargeover.ChargeOver(endpoint, username, password, 
+                           key_auth = key_auth)
 
 sendable = {
     'company':"A COAPI Co.",
@@ -20,6 +24,7 @@ sendable = {
 id = co.create("customer", sendable)
 if id is None:
     pprint.pprint(co.get_last_response())
+    exit()
 
 # Usually if create fails its because the customer already exists. 
 
@@ -35,10 +40,15 @@ print "All customers matching search (it's a list!)"
 pprint.pprint(cust)
 
 # Update our customer
-id = cust[0]['customer_id']
+sendable = cust[0]
 print "Changing external key"
 sendable['external_key'] = "ourcustomer-02"
-id = co.update("customer", id, sendable)
+try:
+    id = co.update("customer", sendable['customer_id'], sendable)
+except:
+    print co._http_res
+    print co._content
+
 if id is None:
     pprint.pprint(co.get_last_response())
     sys.exit("update failed")
