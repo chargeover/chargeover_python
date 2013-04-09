@@ -200,8 +200,10 @@ class ChargeOver:
                                              body=json_data, 
                                              headers=headers)
         else:
+            headers = {'content-type': "application/json"}
             http_res, content = http.request(self._url, method, 
-                                             body=json_data)
+                                             body=json_data,
+                                             headers=headers)
 
         self._http_res = http_res
         self._content = content
