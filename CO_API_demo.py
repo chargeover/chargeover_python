@@ -4,9 +4,9 @@ import pprint # pretty printer
 
 # For authentication, fill in these values from your ChargeOver
 # server information under "Configuraion->API and Webhooks"
-endpoint = "http://erida.local/saas/signup/api/v3.php/"
-username = "gYow6p85Vb0vcfzEH9shRQTrjy2niuLl"
-password = "FBste2Hw9PovbnY6hNuGVmjgA5RDdqXS"
+endpoint = 
+username = 
+password = 
 
 # set this to True to use "COv1 Signature" authorization
 key_auth = True
