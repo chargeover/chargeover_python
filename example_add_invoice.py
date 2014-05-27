@@ -19,17 +19,26 @@ co = chargeover.ChargeOver(
 
 # Our user/contact data 
 data = {
-    'customer_id': 71,    # This is the customer id # this contact should be attached to
-
-    'name': 'Shannon B Palmer', 
-    'email': 'shannon@test.com', 
-    'phone': '860-634-1602'
+    'customer_id': 3, 
+    'invoice_date': '2014-03-05', 
+    'line_items': [
+            {
+                'item_id': 5, 
+                'line_rate': 25.95, 
+                'line_quantity': 3
+            },
+            {
+                'item_id': 3, 
+                'line_rate': 15.95, 
+                'line_quantity': 1
+            }
+        ]
     }
 
 # create a new customer
-id = co.create('user', data)
+id = co.create('invoice', data)
 if id is None:
     pprint.pprint(co.get_last_response())
     exit()
 else:
-    print("Our new user ID is: " + str(id))
+    print("Our new invoice ID is: " + str(id))
